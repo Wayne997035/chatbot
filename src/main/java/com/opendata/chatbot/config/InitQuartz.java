@@ -36,7 +36,5 @@ public class InitQuartz implements CommandLineRunner {
         routineJobService.addRoutineJob(quartzInfo.getJobName(), quartzInfo.getJobGroupName(),
                 quartzInfo.getCron());
 
-        routineJobService.addRoutineJob(quartzInfo.getJobName(), "WakeUpHerokuTaskImpl", "0 */25 6-23 * * ?");
-
     }
 }

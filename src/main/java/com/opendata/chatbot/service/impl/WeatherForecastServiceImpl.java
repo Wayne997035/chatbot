@@ -45,18 +45,18 @@ public class WeatherForecastServiceImpl implements WeatherForecastService {
 
     @Override
     public WeatherForecastDto findByDistrictAndCity(String district, String city) {
-        var obj = redisTemplate.opsForValue().get(city + "_" + district);
-        if (null != obj) {
-            log.info("connect redis");
-            return (WeatherForecastDto) obj;
-        } else {
-            log.info("connect mongodb");
-            var optionalWeatherForecastDto = OpenDataRepo.findByDistrictAndCity(district, city);
-            if (optionalWeatherForecastDto != null) {
-                redisTemplate.opsForValue().set(city + "_" + district, optionalWeatherForecastDto);
-                redisTemplate.expire(city + "_" + district, Duration.ofHours(1));
-            }
-            return optionalWeatherForecastDto;
+//        var obj = redisTemplate.opsForValue().get(city + "_" + district);
+//        if (null != obj) {
+//            log.info("connect redis");
+//            return (WeatherForecastDto) obj;
+//        } else {
+        log.info("connect mongodb");
+        var optionalWeatherForecastDto = OpenDataRepo.findByDistrictAndCity(district, city);
+        if (optionalWeatherForecastDto != null) {
+            redisTemplate.opsForValue().set(city + "_" + district, optionalWeatherForecastDto);
+            redisTemplate.expire(city + "_" + district, Duration.ofHours(1));
         }
+        return optionalWeatherForecastDto;
+//        }
     }
 }

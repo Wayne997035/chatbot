@@ -28,10 +28,10 @@ public class OpenDataTaskImpl implements OpenDataTask {
         openDataCwbImpl.cityCwb();
 
         // 寫入 Redis
-        openDataRepo.findAll().forEach(weatherForecastDto -> {
-            redisTemplate.delete(weatherForecastDto.getDistrict());
-            redisTemplate.opsForValue().set(weatherForecastDto.getDistrict(), openDataRepo.findByDistrict(weatherForecastDto.getDistrict()));
-        });
+//        openDataRepo.findAll().forEach(weatherForecastDto -> {
+//            redisTemplate.delete(weatherForecastDto.getDistrict());
+//            redisTemplate.opsForValue().set(weatherForecastDto.getDistrict(), openDataRepo.findByDistrict(weatherForecastDto.getDistrict()));
+//        });
 
         log.info("=== OpenDataTaskImpl end === ");
     }

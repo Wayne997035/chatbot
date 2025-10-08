@@ -2,9 +2,11 @@ package com.opendata.chatbot.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -12,8 +14,18 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Locations {
-    private String datasetDescription;
+
+    @JsonProperty("DatasetDescription")
+    public String datasetDescription;
+
+    @JsonProperty("LocationsName")
     private String locationsName;
-    private String dataid;
+
+    @JsonProperty("Dataid")
+    public String dataid;
+
+    @JsonProperty("Location")
     private List<Location> location;
+
+//    private List<Location> location;
 }

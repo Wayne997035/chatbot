@@ -39,8 +39,6 @@ public class MessageJob extends QuartzJobBean {
 
         if (jobGroupName.equals("openDataTaskImpl")) {
             openDataTaskImpl.doRun();
-        }else if(jobGroupName.equals("wakeUpHerokuImpl")){
-            wakeUpHerokuTaskImpl.doRun();
         }
     }
 }

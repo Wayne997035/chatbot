@@ -19,17 +19,17 @@
 
 
 ### 版本
-- Java 11
+- Java 17
 - SpringBoot 2.5.4
 - Jackson 2
-- Gradle 7.2
+- Gradle 7.6
 - Junit 5
 
 ## 使用工具
 #### 這個專案使用到工具有：
 | [SpringBoot](https://spring.io/projects/spring-boot) | [GraphQL](https://graphql.org/)  | [DGS](https://netflix.github.io/dgs/) | [Line Message API](https://developers.line.biz/en/docs/messaging-api/overview/) | [Redis](https://redis.io/)
 | -------- | -------- | -------- | -------- | -------- |
-|[Docker](https://www.docker.com/) |  [Heroku](https://dashboard.heroku.com/)  | [Quartz Scheduler](https://docs.spring.io/spring-boot/docs/2.0.0.M3/reference/html/boot-features-quartz.html)|[MongoDB](https://www.mongodb.com/) | [RabbitMQ](https://www.rabbitmq.com/)
+|[Docker](https://www.docker.com/) |  [Render](https://render.com/)  | [Quartz Scheduler](https://docs.spring.io/spring-boot/docs/2.0.0.M3/reference/html/boot-features-quartz.html)|[MongoDB](https://www.mongodb.com/) 
 
 ## 資料來源
-- 政府openData [OpenData CWB](https://opendata.cwb.gov.tw/index) 
+- 政府openData [OpenData CWB](https://opendata.cwa.gov.tw/index) 

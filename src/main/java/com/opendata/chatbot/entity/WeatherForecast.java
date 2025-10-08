@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @Data
 @AllArgsConstructor
@@ -20,4 +22,5 @@ public class WeatherForecast {
     private String measures;
     private String startTime;
     private String dataTime;
+    private List<ElementValue> elementValue;
 }

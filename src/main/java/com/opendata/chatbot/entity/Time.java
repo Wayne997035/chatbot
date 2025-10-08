@@ -2,6 +2,7 @@ package com.opendata.chatbot.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
@@ -12,8 +13,15 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Time {
+    @JsonProperty("StartTime")
     private String startTime;
+
+    @JsonProperty("EndTime")
     private String endTime;
+
+    @JsonProperty("ElementValue")
     private List<ElementValue> elementValue;
+
+    @JsonProperty("DataTime")
     private String dataTime;
 }

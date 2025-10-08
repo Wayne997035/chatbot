@@ -2,11 +2,13 @@ package com.opendata.chatbot.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -15,9 +17,18 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class Location {
+    @JsonProperty("LocationName")
     private String locationName;
+
+    @JsonProperty("Geocode")
     private String geocode;
-    private String lat;
-    private String lon;
+
+    @JsonProperty("Latitude")
+    private String latitude;
+
+    @JsonProperty("Longitude")
+    private String longitude;
+
+    @JsonProperty("WeatherElement")
     private List<WeatherElement> weatherElement;
 }
