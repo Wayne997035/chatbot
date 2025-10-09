@@ -40,7 +40,7 @@ public class OpenDataCwbImpl implements OpenDataCwb {
         return new WeatherForecast();
     }
 
-    private boolean stopSync = false;
+//    private boolean stopSync = false;
 
     @Override
     public String AllData(String url) {
@@ -61,7 +61,7 @@ public class OpenDataCwbImpl implements OpenDataCwb {
         var urlTemplate = new String(Base64.getDecoder().decode(cwbUrl), StandardCharsets.UTF_8);
 
         for (int i = 1; i <= 87; i += 2) {
-            if (stopSync) break; // 一旦撞時間就停止整個任務
+//            if (stopSync) break; // 一旦撞時間就停止整個任務
             var s = String.format("%03d", i);
             var openDataCwbUrl = replaceVariable(urlTemplate, new String[]{s});
 
@@ -81,7 +81,7 @@ public class OpenDataCwbImpl implements OpenDataCwb {
             if (locationsList.isEmpty()) continue;
 
             for (var locs : locationsList) {
-                if (stopSync) break; // 一旦撞時間就停止
+//                if (stopSync) break; // 一旦撞時間就停止
                 String city = locs.getLocationsName() != null ? locs.getLocationsName().replace("臺", "台") : "未知縣市";
                 log.info("Job City = {}", city);
 
@@ -97,7 +97,7 @@ public class OpenDataCwbImpl implements OpenDataCwb {
                         locationList.add(location);
                     }
                     weatherForecast(city, locationList);
-                    if (stopSync) break; // 一旦撞時間就停止
+//                    if (stopSync) break; // 一旦撞時間就停止
                 }
             }
         }
@@ -181,16 +181,16 @@ public class OpenDataCwbImpl implements OpenDataCwb {
                 }
 
                 // 先比對 DB
-                var existing = openDataRepo.findByDistrictAndCity(district, city);
-                if (existing != null && existing.getWeatherForecast() != null) {
-                    boolean alreadyExists = existing.getWeatherForecast().stream()
-                            .anyMatch(wf -> wf.getStartTime().equals(closestTime.getStartTime()));
-                    if (alreadyExists) {
-                        log.info("City {}, district {} startTime {} already exists, stop syncing.", city, district, closestTime.getStartTime());
-                        stopSync = true; // 設置 flag
-                        return; // 直接停止整個方法
-                    }
-                }
+//                var existing = openDataRepo.findByDistrictAndCity(district, city);
+//                if (existing != null && existing.getWeatherForecast() != null) {
+//                    boolean alreadyExists = existing.getWeatherForecast().stream()
+//                            .anyMatch(wf -> wf.getStartTime().equals(closestTime.getStartTime()));
+//                    if (alreadyExists) {
+//                        log.info("City {}, district {} startTime {} already exists, stop syncing.", city, district, closestTime.getStartTime());
+////                        stopSync = true; // 設置 flag
+//                        return; // 直接停止整個方法
+//                    }
+//                }
 
                 // 取第一筆有值的 ElementValue
                 ElementValue ev = closestTime.getElementValue().stream()
