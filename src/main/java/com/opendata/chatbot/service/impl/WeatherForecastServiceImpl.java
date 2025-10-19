@@ -29,10 +29,10 @@ public class WeatherForecastServiceImpl implements WeatherForecastService {
     @Override
     public List<WeatherForecastDto> findByDistrict(String district) {
         var obj = redisTemplate.opsForValue().get(district);
-        if (null != obj) {
-            log.info("connect redis");
-            return (List<WeatherForecastDto>) obj;
-        } else {
+//        if (null != obj) {
+//            log.info("connect redis");
+//            return (List<WeatherForecastDto>) obj;
+//        } else {
             log.info("connect mongodb");
             var optionalList = OpenDataRepo.findByDistrict(district);
             if (optionalList.size() != 0) {
@@ -40,7 +40,7 @@ public class WeatherForecastServiceImpl implements WeatherForecastService {
 //                redisTemplate.expire(district, Duration.ofHours(1));
             }
             return optionalList;
-        }
+//        }
     }
 
     @Override

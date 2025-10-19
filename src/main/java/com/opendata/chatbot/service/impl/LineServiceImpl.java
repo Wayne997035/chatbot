@@ -184,33 +184,26 @@ public class LineServiceImpl implements LineService {
         var headers = headersUtil.setHeaders();
         var messagesList = new LinkedList<Messages>();
         var low = weatherForecastServiceImpl.findByDistrict(dist);
-        // 取得氣象 Data
-        // 多筆結果
-        if (low.size() > 1) {
-            low.forEach(openData -> {
-                var messages = weatherForecastLineMessageReply(openData);
-                messagesList.add(messages);
-            });
-            ReplyMessage replyMessage = new ReplyMessage(replyToken, messagesList);
-            return restTemplate.exchange(url, HttpMethod.POST,
-                    new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers), String.class);
-        } else if (low.size() == 0) {
+
+        log.info("findByDistrict dist='{}', result size={}, data={}", dist, low.size(), low);
+
+        if (low.isEmpty()) {
             var messages = getMessages();
             messages.setType("text");
             messages.setText("無法解析輸入內容，請輸入地區。Ex: 士林區、羅東鎮、礁溪鄉、宜蘭市等");
             messagesList.add(messages);
-            return restTemplate.exchange(url, HttpMethod.POST,
-                    new HttpEntity<>(JsonConverter.toJsonString(new ReplyMessage(replyToken, messagesList)), headers), String.class);
         } else {
-            // 單比結果
-            var openData = low.get(0);
-            var messages = weatherForecastLineMessageReply(openData);
-            messagesList.add(messages);
+            low.forEach(openData -> {
+                // 只查詢區域 所以可能會有同名多筆資料
+                var messages = weatherForecastLineMessageReply(openData);
+                messagesList.add(messages);
+            });
         }
-        ReplyMessage replyMessage = new ReplyMessage(replyToken, messagesList);
 
+        var replyMessage = new ReplyMessage(replyToken, messagesList);
         return restTemplate.exchange(url, HttpMethod.POST,
-                new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers), String.class);
+                new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers),
+                String.class);
     }
 
     @Override
