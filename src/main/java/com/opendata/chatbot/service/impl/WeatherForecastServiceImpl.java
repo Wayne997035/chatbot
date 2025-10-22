@@ -35,9 +35,11 @@ public class WeatherForecastServiceImpl implements WeatherForecastService {
 //        } else {
             log.info("connect mongodb");
             var optionalList = OpenDataRepo.findByDistrict(district);
-            if (optionalList.size() != 0) {
+            if (!optionalList.isEmpty()) {
+                // redis add
+                log.info("redis cache mongodb");
                 redisTemplate.opsForValue().set(district, optionalList);
-//                redisTemplate.expire(district, Duration.ofHours(1));
+                redisTemplate.expire(district, Duration.ofHours(1));
             }
             return optionalList;
 //        }
@@ -50,11 +52,15 @@ public class WeatherForecastServiceImpl implements WeatherForecastService {
 //            log.info("connect redis");
 //            return (WeatherForecastDto) obj;
 //        } else {
-        log.info("connect mongodb");
-        var optionalWeatherForecastDto = OpenDataRepo.findByDistrictAndCity(district, city);
+        log.info("location connect mongodb");
+        var cityReplace = city.replace("臺", "台");
+        log.info("district = {}, city = {}", district, cityReplace);
+        var optionalWeatherForecastDto = OpenDataRepo.findByDistrictAndCity(district, cityReplace);
+        log.info("optionalWeatherForecastDto = {}", optionalWeatherForecastDto);
         if (optionalWeatherForecastDto != null) {
-            redisTemplate.opsForValue().set(city + "_" + district, optionalWeatherForecastDto);
-            redisTemplate.expire(city + "_" + district, Duration.ofHours(1));
+            log.info("location redis cache mongodb");
+            redisTemplate.opsForValue().set(cityReplace + "_" + district, optionalWeatherForecastDto);
+            redisTemplate.expire(cityReplace + "_" + district, Duration.ofHours(1));
         }
         return optionalWeatherForecastDto;
 //        }
