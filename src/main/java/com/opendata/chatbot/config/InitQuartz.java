@@ -2,20 +2,19 @@ package com.opendata.chatbot.config;
 
 import com.opendata.chatbot.entity.QuartzInfo;
 import com.opendata.chatbot.job.task.RoutineJobService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class InitQuartz implements CommandLineRunner {
-    @Autowired
-    RoutineJobService routineJobService;
 
-    @Autowired
-    QuartzInfo quartzInfo;
+    private final RoutineJobService routineJobService;
+    private final QuartzInfo quartzInfo;
 
     @Value("${spring.quartz.cron}")
     private String cron;
@@ -32,9 +31,7 @@ public class InitQuartz implements CommandLineRunner {
         quartzInfo.setJobGroupName(jobGroupName);
         quartzInfo.setCron(cron);
 
-
         routineJobService.addRoutineJob(quartzInfo.getJobName(), quartzInfo.getJobGroupName(),
                 quartzInfo.getCron());
-
     }
 }

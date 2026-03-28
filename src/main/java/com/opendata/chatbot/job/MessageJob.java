@@ -9,8 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.quartz.QuartzJobBean;
 import org.springframework.stereotype.Component;
 
-import java.util.Date;
-
 @Component
 @Slf4j
 public class MessageJob extends QuartzJobBean {
@@ -18,27 +16,19 @@ public class MessageJob extends QuartzJobBean {
     @Autowired
     private OpenDataTask openDataTaskImpl;
 
-    @Autowired
-    private OpenDataTask wakeUpHerokuTaskImpl;
-
     @Override
     protected void executeInternal(JobExecutionContext jobExecutionContext) throws JobExecutionException {
         JobDataMap jobDataMap = jobExecutionContext.getJobDetail().getJobDataMap();
 
-        log.info("Set quartz run => {}, Trigger =>{}", jobDataMap.get("name").toString(), jobExecutionContext.getTrigger());
+        log.info("Set quartz run => {}, Trigger => {}", jobDataMap.get("name"), jobExecutionContext.getTrigger());
 
-        log.info("**********jobGroupName =>{}", jobExecutionContext.getTrigger().getJobKey().getGroup());
+        var jobGroupName = jobExecutionContext.getTrigger().getJobKey().getGroup();
+        log.info("jobGroupName => {}", jobGroupName);
 
-        this.doExecete(jobExecutionContext.getTrigger().getJobKey().getGroup());
-
-        ((OpenDataTask) jobDataMap.get("task")).doRun();
-    }
-
-    protected void doExecete(String jobGroupName) {
-        long stamp = (new Date()).getTime();
-
-        if (jobGroupName.equals("openDataTaskImpl")) {
+        if ("openDataTaskImpl".equals(jobGroupName)) {
             openDataTaskImpl.doRun();
         }
+
+        ((OpenDataTask) jobDataMap.get("task")).doRun();
     }
 }

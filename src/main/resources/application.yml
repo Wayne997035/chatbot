@@ -3,28 +3,26 @@ server:
   tomcat:
     uri-encoding: UTF-8
 spring:
-  profiles:
-    active: master
-# mongo 設定
+  threads:
+    virtual:
+      enabled: true
+  cache:
+    type: redis
+  mongodb:
+    uri: ${mongodUri}
   data:
-    mongodb:
-      uri: ${mongodUri}
-# rabbitmq 設定
-#  rabbitmq:
-#    addresses: ${rabbitmqUrl}
-# redis 設定
-  redis:
-    database: 0
-    host: ${redisHost}
-    port: ${redisPort}
-    password: ${redisPassword}
-    timeout: 10000
-    lettuce:
-      pool:
-        max-active: 8
-        max-wait: -1
-        max-idle: 8
-        min-idle: 0
+    redis:
+      database: 0
+      host: ${redisHost}
+      port: ${redisPort}
+      password: ${redisPassword}
+      timeout: 10000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
   quartz:
     cron: 0 0 */2 * * ?
     jobName: openDataTask
@@ -32,13 +30,7 @@ spring:
   boot:
     aes:
       key: ${aesKey}
-#    SecretManager:
-#      bucket: ${bucket}
-#      serviceAccountKey: ${serviceAccountKey}
     openCWB:
-#       36小時 全台預報 location locationName 臺北市
-#      datastore: ${allWeatherForecast}
-#      臺北市 各區預報
       cwbUrl: ${weatherForecast}
   line:
     replyUrl: ${replyUrl}

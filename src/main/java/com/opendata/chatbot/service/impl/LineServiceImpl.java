@@ -2,17 +2,14 @@ package com.opendata.chatbot.service.impl;
 
 import com.opendata.chatbot.dao.User;
 import com.opendata.chatbot.dao.WeatherForecastDto;
-import com.opendata.chatbot.entity.Event;
 import com.opendata.chatbot.entity.EventWrapper;
 import com.opendata.chatbot.entity.Messages;
 import com.opendata.chatbot.entity.ReplyMessage;
 import com.opendata.chatbot.service.*;
 import com.opendata.chatbot.util.HeadersUtil;
 import com.opendata.chatbot.util.JsonConverter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.codec.binary.Base64;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -27,12 +24,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class LineServiceImpl implements LineService {
 
     @Value("${spring.line.channelSecret}")
@@ -44,48 +42,20 @@ public class LineServiceImpl implements LineService {
     @Value("${spring.line.replyUrl}")
     private String replyUrl;
 
-    @Autowired
-    private AesECB aesECBImpl;
-
-    @Autowired
-    private UserService userServiceImpl;
-
-    @Autowired
-    private HeadersUtil headersUtil;
-
-    @Autowired
-    private EventWrapper eventWrapper;
-
-    @Autowired
-    private Event event;
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private OpenDataCwb openDataCwbImpl;
-
-    @Autowired
-    private WeatherForecastService weatherForecastServiceImpl;
-
-    @Lookup
-    private Messages getMessages() {
-        return new Messages();
-    }
-
-    @Lookup
-    private User getUser() {
-        return new User();
-    }
+    private final AesECB aesECBImpl;
+    private final UserService userServiceImpl;
+    private final HeadersUtil headersUtil;
+    private final RestTemplate restTemplate;
+    private final OpenDataCwb openDataCwbImpl;
+    private final WeatherForecastService weatherForecastServiceImpl;
 
     @Override
     public ResponseEntity<String> WebHook(String requestBody, String line_headers) {
-        // 開執行緒去處理使用者訊息，先 return Line Http 200 訊息
+        // 開執��緒去處理使用者訊息，先 return Line Http 200 訊息
         CompletableFuture.runAsync(() -> {
             // 驗證line傳過來的訊息
             if (validateLineHeader(requestBody, line_headers)) {
                 log.info("驗證成功");
-                System.gc();
                 replyMessage(requestBody);
             } else {
                 throw new RuntimeException("validateLineHeader line_headers validate Error");
@@ -96,21 +66,19 @@ public class LineServiceImpl implements LineService {
 
     @Override
     public boolean validateLineHeader(String requestBody, String lineHeaders) {
-        log.info("requestBody = {}", requestBody);
-        log.info("lineHeaders = {}", lineHeaders);
+        log.debug("lineHeaders = {}", lineHeaders);
         var secret = aesECBImpl.aesDecrypt(channelSecret);
         var key = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
         try {
             var mac = Mac.getInstance("HmacSHA256");
             mac.init(key);
             byte[] source = requestBody.getBytes(StandardCharsets.UTF_8);
-            var signature = Base64.encodeBase64String(mac.doFinal(source));
+            var signature = Base64.getEncoder().encodeToString(mac.doFinal(source));
             if (signature.equals(lineHeaders)) {
                 return true;
             }
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            e.printStackTrace();
-            log.error("validateLineHeader : {}", e.getMessage());
+            log.error("validateLineHeader : {}", e.getMessage(), e);
         }
         return false;
     }
@@ -118,27 +86,23 @@ public class LineServiceImpl implements LineService {
     @Override
     public void replyMessage(String requestBody) {
         // 回訊息 URL
-        var url = new String(java.util.Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
+        var url = new String(Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
         //送出參數
         var headers = headersUtil.setHeaders();
         var messagesList = new LinkedList<Messages>();
-        eventWrapper = JsonConverter.toObject(requestBody, EventWrapper.class);
+        var eventWrapper = JsonConverter.toObject(requestBody, EventWrapper.class);
         log.trace("eventWrapper = {}", eventWrapper);
 
-        var userId = new AtomicReference<String>();
-
         // 取出User Event 的 資料，後續打API使用
-        this.event = null;
         eventWrapper.getEvents().forEach(event -> {
-            userId.set(event.getSource().getUserId());
-            this.event = event;
+            var userId = event.getSource().getUserId();
             log.info("event = {}", event);
 
             // 開執行序去存 User 資料 DB
             CompletableFuture.runAsync(() -> {
-                User user = getUser();
-                if (userServiceImpl.getUserById(userId.get()) == null) {
-                    user.setId(userId.get());
+                if (userServiceImpl.getUserById(userId) == null) {
+                    var user = new User();
+                    user.setId(userId);
                     user.setCreateTime(LocalDateTime.now());
                     userServiceImpl.saveUser(user);
                 }
@@ -165,7 +129,7 @@ public class LineServiceImpl implements LineService {
                 }
                 replyWeatherLocation(city, dist, event.getReplyToken());
             } else {
-                var messages = getMessages();
+                var messages = new Messages();
                 messages.setType("text");
                 messages.setText("無法解析內容");
                 messagesList.add(messages);
@@ -179,22 +143,21 @@ public class LineServiceImpl implements LineService {
     @Override
     public ResponseEntity<String> replyWeatherForecast(String dist, String replyToken) {
         // 回訊息 URL
-        var url = new String(java.util.Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
+        var url = new String(Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
         //送出參數
         var headers = headersUtil.setHeaders();
         var messagesList = new LinkedList<Messages>();
         var low = weatherForecastServiceImpl.findByDistrict(dist);
 
-        log.info("findByDistrict dist='{}', result size={}, data={}", dist, low.size(), low);
+        log.info("findByDistrict dist='{}', result size={}", dist, low.size());
 
         if (low.isEmpty()) {
-            var messages = getMessages();
+            var messages = new Messages();
             messages.setType("text");
             messages.setText("無法解析輸入內容，請輸入地區。Ex: 士林區、羅東鎮、礁溪鄉、宜蘭市等");
             messagesList.add(messages);
         } else {
             low.forEach(openData -> {
-                // 只查詢區域 所以可能會有同名多筆資料
                 var messages = weatherForecastLineMessageReply(openData);
                 messagesList.add(messages);
             });
@@ -209,7 +172,7 @@ public class LineServiceImpl implements LineService {
     @Override
     public ResponseEntity<String> replyWeatherLocation(String city, String dist, String replyToken) {
         // 回訊息 URL
-        var url = new String(java.util.Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
+        var url = new String(Base64.getDecoder().decode(replyUrl), StandardCharsets.UTF_8);
         //送出參數
         var headers = headersUtil.setHeaders();
         var messagesList = new LinkedList<Messages>();
@@ -219,7 +182,7 @@ public class LineServiceImpl implements LineService {
 
         messagesList.add(messages);
 
-        ReplyMessage replyMessage = new ReplyMessage(replyToken, messagesList);
+        var replyMessage = new ReplyMessage(replyToken, messagesList);
 
         return restTemplate.exchange(url, HttpMethod.POST,
                 new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers), String.class);
@@ -227,28 +190,18 @@ public class LineServiceImpl implements LineService {
 
     @Override
     public Messages weatherForecastLineMessageReply(WeatherForecastDto openData) {
-        var messages = getMessages();
+        var messages = new Messages();
         var msg = new StringBuilder();
         messages.setType("text");
         openData.getWeatherForecast().forEach(wf -> {
             switch (wf.getElementName()) {
-                case "PoP12h":
-                case "PoP6h":
-                case "RH":
+                case "PoP12h", "PoP6h", "RH" ->
                     msg.append(wf.getDescription()).append(" : ").append(wf.getValue()).append("%").append("\n");
-                    break;
-                case "Wx":
-                case "CI":
-                case "WeatherDescription":
-                case "WS":
-                case "WD":
+                case "Wx", "CI", "WeatherDescription", "WS", "WD" ->
                     msg.append(wf.getDescription()).append(" : ").append(wf.getValue()).append("\n");
-                    break;
-                case "AT":
-                case "T":
-                case "Td":
+                case "AT", "T", "Td" ->
                     msg.append(wf.getDescription()).append(" : ").append(wf.getValue()).append("\u2103").append("\n");
-                    break;
+                default -> { }
             }
             messages.setText((openData.getCity() + " " + openData.getDistrict() + "\n天氣預報:\n" + msg));
         });
@@ -258,7 +211,6 @@ public class LineServiceImpl implements LineService {
     @Override
     public ResponseEntity<String> pushMessage(String json) {
         var headers = headersUtil.setHeaders();
-
         return null;
     }
 }

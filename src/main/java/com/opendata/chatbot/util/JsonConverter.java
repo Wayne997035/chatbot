@@ -2,12 +2,11 @@ package com.opendata.chatbot.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JsonConverter {
-    private final static ObjectMapper MAPPER;
+    private static final ObjectMapper MAPPER;
 
     static {
         MAPPER = new ObjectMapper();
@@ -15,12 +14,10 @@ public class JsonConverter {
     }
 
     public static <T> String toJsonString(T obj) {
-        MAPPER.enable(SerializationFeature.INDENT_OUTPUT);
         try {
-            log.info(obj.toString());
             return MAPPER.writeValueAsString(obj);
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("JSON serialization failed: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -29,7 +26,7 @@ public class JsonConverter {
         try {
             return MAPPER.readValue(json, obj);
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("JSON deserialization failed: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -39,7 +36,7 @@ public class JsonConverter {
         try {
             return MAPPER.readValue(json, valueTypeRef);
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("JSON array deserialization failed: {}", e.getMessage(), e);
             return null;
         }
     }

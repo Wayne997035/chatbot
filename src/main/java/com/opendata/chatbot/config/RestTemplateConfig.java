@@ -1,38 +1,32 @@
 package com.opendata.chatbot.config;
 
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+
 @Configuration
+@RequiredArgsConstructor
 public class RestTemplateConfig {
-    @Autowired
-    private CloseableHttpClient httpClient;
+
+    private final HttpClient httpClient;
 
     @Bean
     public RestTemplate restTemplate() {
-        RestTemplate restTemplate = new RestTemplate(clientHttpRequestFactory());
-        return restTemplate;
-    }
-
-    @Bean
-    public HttpComponentsClientHttpRequestFactory clientHttpRequestFactory() {
-        HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
-        clientHttpRequestFactory.setHttpClient(httpClient);
-        clientHttpRequestFactory.setBufferRequestBody(false);
-        clientHttpRequestFactory.setConnectTimeout(20000);
-        clientHttpRequestFactory.setReadTimeout(30000);
-        return clientHttpRequestFactory;
+        var factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofSeconds(30));
+        return new RestTemplate(factory);
     }
 
     @Bean
     public TaskScheduler taskScheduler() {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        var scheduler = new ThreadPoolTaskScheduler();
         scheduler.setThreadNamePrefix("poolScheduler");
         scheduler.setPoolSize(20);
         return scheduler;

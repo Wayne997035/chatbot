@@ -10,20 +10,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ErrorMessageHandler {
-    private final static ErroeResponse erroeResponse;
-    private final static Status status;
-
-    static {
-        erroeResponse = new ErroeResponse();
-        status = new Status();
-    }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler({ErrorMessage.class})
     public final String errorMessageHandler(ErrorMessage ex) {
-        status.setCode(ex.getCode());
-        status.setMessage(ex.getMessage());
-        erroeResponse.setStatus(status);
-        return JsonConverter.toJsonString(erroeResponse);
+        return JsonConverter.toJsonString(new ErroeResponse(new Status(ex.getCode(), ex.getMessage())));
     }
 }

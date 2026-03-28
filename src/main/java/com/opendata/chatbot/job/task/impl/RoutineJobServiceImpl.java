@@ -4,9 +4,9 @@ import com.opendata.chatbot.job.MessageJob;
 import com.opendata.chatbot.job.task.OpenDataTask;
 import com.opendata.chatbot.job.task.RoutineJobService;
 import com.opendata.chatbot.util.QuartzUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,12 +17,12 @@ import java.util.*;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RoutineJobServiceImpl implements RoutineJobService, BeanPostProcessor {
 
     private static final List<OpenDataTask> openDataTaskList = new ArrayList<>();
 
-    @Autowired
-    QuartzUtils quartzUtils;
+    private final QuartzUtils quartzUtils;
 
     @Override
     public boolean addRoutineJob(String jobName, String jobGroupName, String jobTime) {
@@ -35,7 +35,7 @@ public class RoutineJobServiceImpl implements RoutineJobService, BeanPostProcess
 
         Optional<OpenDataTask> crawlTaskOpt = this.setTask(jobGroupName);
 
-        if (!crawlTaskOpt.isPresent()) {
+        if (crawlTaskOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task no exist");
         }
 
