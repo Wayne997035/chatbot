@@ -5,6 +5,10 @@ on:
     branches:
       - '**'
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGION: asia-east1
@@ -32,7 +36,7 @@ jobs:
         run: ./gradlew clean build -x test --no-daemon --console=plain
 
       - name: Upload JAR
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: app-jar
           path: build/libs/*-SNAPSHOT.jar
@@ -51,7 +55,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download JAR
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: app-jar
           path: build/libs/
@@ -80,7 +84,7 @@ jobs:
           IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest"
           docker build -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
 
-  # Step 3: Push image to Artifact Registry (manual, master only)
+  # Step 3: Push image to Artifact Registry (master only, manual approval)
   push-image:
     name: 3. Push Image
     needs: build-image
@@ -95,7 +99,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download JAR
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: app-jar
           path: build/libs/
@@ -124,7 +128,7 @@ jobs:
           docker push "${IMAGE_TAG}"
           docker push "${IMAGE_LATEST}"
 
-  # Step 4: Deploy to Cloud Run (manual, master only)
+  # Step 4: Deploy to Cloud Run (master only, manual approval)
   deploy:
     name: 4. Deploy to Cloud Run
     needs: push-image
