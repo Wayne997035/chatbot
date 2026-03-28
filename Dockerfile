@@ -19,11 +19,10 @@ FROM eclipse-temurin:25-jre-alpine AS runtime
 # 設定時區與 JVM 參數
 ENV TZ=Asia/Taipei \
     JAVA_OPTS="-server \
-               -XX:+UseZGC -XX:+ZGenerational \
-               -Xms128m -Xmx384m \
-               -XX:MaxMetaspaceSize=128m \
-               -XX:+UseStringDeduplication \
-               -XX:+AlwaysPreTouch \
+               -XX:+UseSerialGC \
+               -Xms64m -Xmx256m \
+               -XX:MaxMetaspaceSize=96m \
+               -XX:+TieredCompilation -XX:TieredStopAtLevel=1 \
                -Dfile.encoding=UTF-8"
 
 WORKDIR /app

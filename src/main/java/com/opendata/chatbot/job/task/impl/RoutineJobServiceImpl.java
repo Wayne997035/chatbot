@@ -6,8 +6,6 @@ import com.opendata.chatbot.job.task.RoutineJobService;
 import com.opendata.chatbot.util.QuartzUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ClassUtils;
@@ -18,10 +16,9 @@ import java.util.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RoutineJobServiceImpl implements RoutineJobService, BeanPostProcessor {
+public class RoutineJobServiceImpl implements RoutineJobService {
 
-    private static final List<OpenDataTask> openDataTaskList = new ArrayList<>();
-
+    private final List<OpenDataTask> openDataTaskList;
     private final QuartzUtils quartzUtils;
 
     @Override
@@ -47,19 +44,10 @@ public class RoutineJobServiceImpl implements RoutineJobService, BeanPostProcess
         return true;
     }
 
-    @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof OpenDataTask) {
-            openDataTaskList.add((OpenDataTask) bean);
-        }
-        return bean;
-    }
-
     private Optional<OpenDataTask> setTask(String jobGroupName) {
-        Optional<OpenDataTask> task = openDataTaskList.stream()
+        return openDataTaskList.stream()
                 .filter(openDataJobTask -> ClassUtils.getUserClass(openDataJobTask).getSimpleName().equals(jobGroupName))
                 .findFirst();
-        return task;
     }
 
 }
