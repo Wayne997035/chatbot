@@ -6,11 +6,10 @@ on:
       - '**'
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-east1
   SERVICE_NAME: chatbot-app
-  REGISTRY: asia-east1-docker.pkg.dev
-  IMAGE_REPO: asia-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/chatbot-repo/chatbot
+  REPOSITORY: chatbot-repo
+  IMAGE_NAME: chatbot
 
 jobs:
   # Step 1: Gradle build JAR (auto, all branches)
@@ -58,7 +57,7 @@ jobs:
 
       - name: Set image tag
         id: image-tag
-        run: echo "image=${{ env.IMAGE_REPO }}:${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+        run: echo "image=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
@@ -67,7 +66,7 @@ jobs:
           push: false
           tags: |
             ${{ steps.image-tag.outputs.image }}
-            ${{ env.IMAGE_REPO }}:latest
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
 
   # Step 3: Push image to Artifact Registry (manual, master only)
   push-image:
@@ -99,7 +98,7 @@ jobs:
       - name: Login to Artifact Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.REGION }}-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
@@ -110,7 +109,7 @@ jobs:
           push: true
           tags: |
             ${{ needs.build-image.outputs.image }}
-            ${{ env.IMAGE_REPO }}:latest
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
 
   # Step 4: Deploy to Cloud Run (manual, master only)
   deploy:
