@@ -3,7 +3,7 @@ name: Build and Deploy to Cloud Run
 on:
   push:
     branches:
-      - master
+      - '**'
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -13,7 +13,7 @@ env:
   IMAGE_REPO: asia-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/chatbot-repo/chatbot
 
 jobs:
-  # Step 1: Gradle build JAR (auto)
+  # Step 1: Gradle build JAR (auto, all branches)
   build-jar:
     name: 1. Build JAR
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
           path: build/libs/*-SNAPSHOT.jar
           retention-days: 1
 
-  # Step 2: Docker build image (auto)
+  # Step 2: Docker build image (auto, all branches)
   build-image:
     name: 2. Build Docker Image
     needs: build-jar
@@ -69,10 +69,11 @@ jobs:
             ${{ steps.image-tag.outputs.image }}
             ${{ env.IMAGE_REPO }}:latest
 
-  # Step 3: Push image to Artifact Registry (manual)
+  # Step 3: Push image to Artifact Registry (manual, master only)
   push-image:
     name: 3. Push Image
     needs: build-image
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: push-approval
     outputs:
@@ -111,10 +112,11 @@ jobs:
             ${{ needs.build-image.outputs.image }}
             ${{ env.IMAGE_REPO }}:latest
 
-  # Step 4: Deploy to Cloud Run (manual)
+  # Step 4: Deploy to Cloud Run (manual, master only)
   deploy:
     name: 4. Deploy to Cloud Run
     needs: push-image
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: production
 
