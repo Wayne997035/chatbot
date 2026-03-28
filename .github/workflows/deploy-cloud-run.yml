@@ -1,0 +1,152 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - '**'
+
+env:
+  REGION: asia-east1
+  SERVICE_NAME: chatbot-app
+  REPOSITORY: chatbot-repo
+  IMAGE_NAME: chatbot
+
+jobs:
+  # Step 1: Gradle build JAR (auto, all branches)
+  build-jar:
+    name: 1. Build JAR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test --no-daemon --console=plain
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/*-SNAPSHOT.jar
+          retention-days: 1
+
+  # Step 2: Docker build image (auto, all branches)
+  build-image:
+    name: 2. Build Docker Image
+    needs: build-jar
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image-tag.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/
+
+      - name: Verify GCP_PROJECT_ID is set
+        run: |
+          if [ -z "${{ vars.GCP_PROJECT_ID }}" ]; then
+            echo "::error::GCP_PROJECT_ID variable is not set. Go to GitHub Settings → Secrets and variables → Actions → Variables to add it."
+            exit 1
+          fi
+
+      - name: Set image tag
+        id: image-tag
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${IMAGE}"
+
+      - name: Build Docker image
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          IMAGE_TAG="${{ steps.image-tag.outputs.image }}"
+          IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest"
+          docker build -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
+
+  # Step 3: Push image to Artifact Registry (manual, master only)
+  push-image:
+    name: 3. Push Image
+    needs: build-image
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: push-approval
+    outputs:
+      image: ${{ needs.build-image.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          token_format: access_token
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build and Push
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          IMAGE_TAG="${{ needs.build-image.outputs.image }}"
+          IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest"
+          docker build -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
+          docker push "${IMAGE_TAG}"
+          docker push "${IMAGE_LATEST}"
+
+  # Step 4: Deploy to Cloud Run (manual, master only)
+  deploy:
+    name: 4. Deploy to Cloud Run
+    needs: push-image
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          image: ${{ needs.push-image.outputs.image }}
+          region: ${{ env.REGION }}
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=gcp
+          flags: '--allow-unauthenticated --memory=512Mi --cpu=1 --min-instances=0 --max-instances=1'
+
+      - name: Show deployed URL
+        run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
