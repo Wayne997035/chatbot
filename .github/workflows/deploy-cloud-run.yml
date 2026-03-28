@@ -55,18 +55,29 @@ jobs:
           name: app-jar
           path: build/libs/
 
+      - name: Verify GCP_PROJECT_ID is set
+        run: |
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "::error::GCP_PROJECT_ID secret is not set. Go to GitHub Settings → Secrets and variables → Actions to add it."
+            exit 1
+          fi
+
       - name: Set image tag
         id: image-tag
-        run: echo "image=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${IMAGE}"
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: |
-            ${{ steps.image-tag.outputs.image }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          IMAGE_TAG="${{ steps.image-tag.outputs.image }}"
+          IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest"
+          docker build -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
 
   # Step 3: Push image to Artifact Registry (manual, master only)
   push-image:
@@ -103,13 +114,14 @@ jobs:
           password: ${{ steps.auth.outputs.access_token }}
 
       - name: Build and Push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ needs.build-image.outputs.image }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          IMAGE_TAG="${{ needs.build-image.outputs.image }}"
+          IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${GCP_PROJECT_ID}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest"
+          docker build -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
+          docker push "${IMAGE_TAG}"
+          docker push "${IMAGE_LATEST}"
 
   # Step 4: Deploy to Cloud Run (manual, master only)
   deploy:
