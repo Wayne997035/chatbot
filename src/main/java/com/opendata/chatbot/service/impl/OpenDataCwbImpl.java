@@ -5,9 +5,8 @@ import com.opendata.chatbot.entity.*;
 import com.opendata.chatbot.repository.OpenDataRepo;
 import com.opendata.chatbot.service.OpenDataCwb;
 import com.opendata.chatbot.util.JsonConverter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -21,26 +20,18 @@ import java.util.*;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class OpenDataCwbImpl implements OpenDataCwb {
 
     @Value("${spring.boot.openCWB.cwbUrl}")
     private String cwbUrl;
 
-    @Autowired
-    private OpenDataRepo openDataRepo;
+    private final OpenDataRepo openDataRepo;
 
 //    @Autowired
 //    private RabbitTemplate rabbitTemplate;
 
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Lookup
-    private WeatherForecast getWeatherForecast() {
-        return new WeatherForecast();
-    }
-
-//    private boolean stopSync = false;
+    private final RestTemplate restTemplate;
 
     @Override
     public String AllData(String url) {
@@ -48,8 +39,7 @@ public class OpenDataCwbImpl implements OpenDataCwb {
         try {
             body = restTemplate.getForEntity(URI.create(url), String.class).getBody();
         } catch (Exception e) {
-            e.printStackTrace();
-            log.error("Base64 decode Error :{}", e.getMessage());
+            log.error("Base64 decode Error: {}", e.getMessage(), e);
         }
         return body;
     }
@@ -57,7 +47,6 @@ public class OpenDataCwbImpl implements OpenDataCwb {
     @Override
     public void cityCwb() {
 
-        System.gc();
         var urlTemplate = new String(Base64.getDecoder().decode(cwbUrl), StandardCharsets.UTF_8);
 
         for (int i = 1; i <= 87; i += 2) {

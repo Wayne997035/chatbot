@@ -20,7 +20,7 @@ public class GlobalCorsConfig {
                         //允許哪些Header
                         .allowedHeaders("*")
                         //允許跨網域請求的來源
-                        .allowedOrigins("*");
+                        .allowedOriginPatterns("*");
             }
         };
     }

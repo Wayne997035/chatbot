@@ -4,8 +4,8 @@ import com.opendata.chatbot.dao.User;
 import com.opendata.chatbot.service.LineService;
 import com.opendata.chatbot.service.OpenDataCwb;
 import com.opendata.chatbot.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,19 +14,12 @@ import java.util.List;
 
 @RestController
 @Slf4j
+@RequiredArgsConstructor
 public class WebController {
 
-    @Autowired
-    private LineService lineServiceImpl;
-
-    @Autowired
-    private UserService userServiceImpl;
-
-    @Autowired
-    private OpenDataCwb openDataCwbImpl;
-
-//    @Autowired
-//    private FirebaseStore firebaseStoreImpl;
+    private final LineService lineServiceImpl;
+    private final UserService userServiceImpl;
+    private final OpenDataCwb openDataCwbImpl;
 
     /*
      * LineBot WebHook 驗證回訊息
@@ -34,7 +27,7 @@ public class WebController {
     @PostMapping("/webHook")
     public ResponseEntity<String> webHook(@RequestBody String requestBody,
                                           @RequestHeader("X-Line-Signature") String line_headers) {
-        log.info("Begin Controller => {}", requestBody);
+        log.debug("WebHook request received");
         return lineServiceImpl.WebHook(requestBody, line_headers);
     }
 
@@ -47,25 +40,4 @@ public class WebController {
     public void openDataUpdate() {
         openDataCwbImpl.cityCwb();
     }
-
-//    @PostMapping(value = "/upload", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public Map<String, Object> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
-//        Map<String, Object> m = new LinkedHashMap<>();
-//        m.put("imageUrl", firebaseStoreImpl.uploadFiles(file));
-//        log.info("json = {}", m);
-//        return m;
-//    }
-//
-//    @PostMapping(value = "/download/{fileName}", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public String downloadFile(@PathVariable String fileName) throws IOException {
-//        return firebaseStoreImpl.download(fileName);
-//    }
-//
-//    @PostConstruct
-//    public void weatherForecast() throws IOException {
-//        log.info("=== OpenDataTaskImpl start === ");
-//        Arrays.stream(Constant.CITY).forEach(city -> {
-//            openDataCwbImpl.weatherForecast(city);
-//        });
-//    }
 }

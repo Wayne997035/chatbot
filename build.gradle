@@ -1,13 +1,17 @@
 plugins {
-	id 'org.springframework.boot' version '2.5.4'
-	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
-	id 'com.netflix.dgs.codegen' version '4.5.1'
+	id 'org.springframework.boot' version '4.0.1'
+	id 'io.spring.dependency-management' version '1.1.7'
 	id 'java'
 }
 
 group = 'com.opendata'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '17'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
 
 configurations {
 	compileOnly {
@@ -17,40 +21,33 @@ configurations {
 
 repositories {
 	mavenCentral()
-	google()
-	maven { url 'https://maven.pkg.st' }
-	maven { url 'https://maven.pkg.github.com/Netflix/dgs-framework' }
 }
 
 dependencies {
 	// === 核心與 Web 框架 ===
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	// implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// === 資料庫與快取 ===
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	implementation 'redis.clients:jedis:3.7.0'
 
 	// === 定時任務 ===
-	// 如果暫時用不到，也可以註解掉這行來加速啟動
 	implementation 'org.springframework.boot:spring-boot-starter-quartz'
-
-	// === GraphQL ===
-	implementation platform("com.netflix.graphql.dgs:graphql-dgs-platform-dependencies:4.9.10")
-	implementation 'com.netflix.graphql.dgs:graphql-dgs-spring-boot-starter'
 
 	// === 工具與函式庫 ===
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-	implementation 'org.apache.httpcomponents:httpclient:4.5.13'
-	implementation 'com.github.cloudyrock.mongock:mongock-api:4.3.8'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+	compileOnly 'org.projectlombok:lombok:1.18.38'
+	annotationProcessor 'org.projectlombok:lombok:1.18.38'
 
-	// === 開發與測試 ===
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// === 測試 ===
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+}
+
+compileTestJava.enabled = false
 
 test {
 	exclude '**/*'

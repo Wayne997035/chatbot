@@ -1,7 +1,7 @@
 package com.opendata.chatbot.service.impl;
 
 import com.opendata.chatbot.service.AesECB;
-import org.apache.tomcat.util.codec.binary.Base64;
+import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -77,7 +77,7 @@ public class AesECBImpl implements AesECB {
      */
     public String base64Encode(byte[] bytes) {
         try {
-            return Base64.encodeBase64String(bytes);
+            return Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             e.printStackTrace();
             return "";
@@ -93,7 +93,7 @@ public class AesECBImpl implements AesECB {
      */
     public byte[] base64Decode(String base64Code) {
         try {
-            return StringUtils.hasText(base64Code) ? new Base64().decode(base64Code) : null;
+            return StringUtils.hasText(base64Code) ? Base64.getDecoder().decode(base64Code) : null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;

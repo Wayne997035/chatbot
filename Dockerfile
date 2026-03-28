@@ -1,32 +1,36 @@
 # ---------- Stage 1: Build ----------
-FROM gradle:7.6.6-jdk17-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 
-WORKDIR /home/gradle/src
-COPY --chown=gradle:gradle . .
+WORKDIR /app
 
-# build，跳過測試，加快速度
-RUN gradle clean build -x test --no-daemon --console=plain
+# 先 copy gradle 相關檔案（Docker cache friendly）
+COPY gradle/ gradle/
+COPY gradlew build.gradle settings.gradle ./
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
+
+# 再 copy source code
+COPY src/ src/
+RUN ./gradlew clean build -x test --no-daemon --console=plain
 
 
 # ---------- Stage 2: Runtime ----------
-FROM eclipse-temurin:17-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 # 設定時區與 JVM 參數
 ENV TZ=Asia/Taipei \
     JAVA_OPTS="-server \
-               -XX:+UseG1GC \
-               -Xms128m -Xmx384m \
-               -XX:MaxMetaspaceSize=128m \
-               -XX:+UseStringDeduplication \
-               -XX:+AlwaysPreTouch \
+               -XX:+UseSerialGC \
+               -Xms64m -Xmx256m \
+               -XX:MaxMetaspaceSize=96m \
+               -XX:+TieredCompilation -XX:TieredStopAtLevel=1 \
                -Dfile.encoding=UTF-8"
 
 WORKDIR /app
 
 # 拷貝 build 的 JAR
-COPY --from=build /home/gradle/src/build/libs/*-0.0.1-SNAPSHOT.jar /app/app.jar
+COPY --from=build /app/build/libs/*-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
 
 # entrypoint 保留靈活性，可注入 JAVA_OPTS
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
