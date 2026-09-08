@@ -60,8 +60,24 @@ public class LineServiceImpl implements LineService {
             } else {
                 throw new RuntimeException("validateLineHeader line_headers validate Error");
             }
+        }).exceptionally(ex -> {
+            // [F1-02] 原本例外會被 CompletableFuture 保存後永不輸出，一行 log 都沒有
+            log.error("[F1-02] WebHook async processing failed: {}", ex.getMessage(), ex);
+            return null;
         });
         return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    // [F1-02] 三處 restTemplate.exchange 共用：一律記錄 status；失敗（非 2xx）時連 body 一起記，
+    // body 截斷到 500 字元以內避免噴 log
+    private void logReplyStatus(String context, ResponseEntity<String> response) {
+        if (response.getStatusCode().is2xxSuccessful()) {
+            log.info("[F1-02] {} status={}", context, response.getStatusCode());
+        } else {
+            var body = response.getBody();
+            var truncatedBody = (body != null && body.length() > 500) ? body.substring(0, 500) : body;
+            log.warn("[F1-02] {} status={}, body={}", context, response.getStatusCode(), truncatedBody);
+        }
     }
 
     @Override
@@ -95,46 +111,70 @@ public class LineServiceImpl implements LineService {
 
         // 取出User Event 的 資料，後續打API使用
         eventWrapper.getEvents().forEach(event -> {
-            var userId = event.getSource().getUserId();
-            log.info("event = {}", event);
+            try {
+                var userId = event.getSource().getUserId();
+                log.info("event = {}", event);
 
-            // 開執行序去存 User 資料 DB
-            CompletableFuture.runAsync(() -> {
-                if (userServiceImpl.getUserById(userId) == null) {
-                    var user = new User();
-                    user.setId(userId);
-                    user.setCreateTime(LocalDateTime.now());
-                    userServiceImpl.saveUser(user);
-                }
-            });
-
-            if (event.getMessage().getType().equals("text")) {
-                replyWeatherForecast(event.getMessage().getText(), event.getReplyToken());
-            } else if (event.getMessage().getType().equals("location")) {
-                var address = event.getMessage().getAddress();
-                String city = "";
-                String dist = "";
-                if (address.contains("市") && address.contains("區")) {
-                    city = address.substring(address.indexOf("市") - 2, address.indexOf("市") + 1);
-                    dist = address.substring(address.indexOf("市") + 1, address.indexOf("區") + 1);
-                } else {
-                    city = address.substring(address.indexOf("縣") - 2, address.indexOf("縣") + 1);
-                    if (address.contains("市")) {
-                        dist = address.substring(address.indexOf("縣") + 1, address.indexOf("市") + 1);
-                    } else if (address.contains("鄉")) {
-                        dist = address.substring(address.indexOf("縣") + 1, address.indexOf("鄉") + 1);
-                    } else if (address.contains("鎮")) {
-                        dist = address.substring(address.indexOf("縣") + 1, address.indexOf("鎮") + 1);
+                // 開執行序去存 User 資料 DB
+                CompletableFuture.runAsync(() -> {
+                    if (userServiceImpl.getUserById(userId) == null) {
+                        var user = new User();
+                        user.setId(userId);
+                        user.setCreateTime(LocalDateTime.now());
+                        userServiceImpl.saveUser(user);
                     }
+                }).exceptionally(ex -> {
+                    // [F1-02] 存 user 是旁路，失敗不得影響回覆流程，只記錄
+                    log.error("[F1-02] save user async failed, userId={}: {}", userId, ex.getMessage(), ex);
+                    return null;
+                });
+
+                if (event.getMessage() != null && event.getMessage().getType().equals("text")) {
+                    replyWeatherForecast(event.getMessage().getText(), event.getReplyToken());
+                } else if (event.getMessage() != null && event.getMessage().getType().equals("location")) {
+                    var address = event.getMessage().getAddress();
+                    String city = "";
+                    String dist = "";
+                    if (address.contains("市") && address.contains("區")) {
+                        city = address.substring(address.indexOf("市") - 2, address.indexOf("市") + 1);
+                        dist = address.substring(address.indexOf("市") + 1, address.indexOf("區") + 1);
+                    } else if (address.contains("縣")) {
+                        city = address.substring(address.indexOf("縣") - 2, address.indexOf("縣") + 1);
+                        if (address.contains("市")) {
+                            dist = address.substring(address.indexOf("縣") + 1, address.indexOf("市") + 1);
+                        } else if (address.contains("鄉")) {
+                            dist = address.substring(address.indexOf("縣") + 1, address.indexOf("鄉") + 1);
+                        } else if (address.contains("鎮")) {
+                            dist = address.substring(address.indexOf("縣") + 1, address.indexOf("鎮") + 1);
+                        }
+                    }
+                    if (city.isEmpty() || dist.isEmpty()) {
+                        // [F1-03] 三類都取不出可用地址：無市無縣／有市無區且無縣／有縣但無市鄉鎮，
+                        // 不再落入原本的縣分支做 substring 越界，改回可辨識訊息
+                        var messages = new Messages();
+                        messages.setType("text");
+                        messages.setText("無法解析地址，請直接輸入地區名稱");
+                        messagesList.add(messages);
+                        var response = restTemplate.exchange(url, HttpMethod.POST,
+                                new HttpEntity<>(JsonConverter.toJsonString(new ReplyMessage(event.getReplyToken(), messagesList)), headers), String.class);
+                        logReplyStatus("replyMessage(address parse failed)", response);
+                    } else {
+                        replyWeatherLocation(city, dist, event.getReplyToken());
+                    }
+                } else {
+                    // [F1-03] event.getMessage() 為 null（postback／貼圖等無 message 欄位的事件）
+                    // 或型別無法辨識，沿用既有「無法解析內容」文案與流程
+                    var messages = new Messages();
+                    messages.setType("text");
+                    messages.setText("無法解析內容");
+                    messagesList.add(messages);
+                    var response = restTemplate.exchange(url, HttpMethod.POST,
+                            new HttpEntity<>(JsonConverter.toJsonString(new ReplyMessage(event.getReplyToken(), messagesList)), headers), String.class);
+                    logReplyStatus("replyMessage(unrecognized)", response);
                 }
-                replyWeatherLocation(city, dist, event.getReplyToken());
-            } else {
-                var messages = new Messages();
-                messages.setType("text");
-                messages.setText("無法解析內容");
-                messagesList.add(messages);
-                restTemplate.exchange(url, HttpMethod.POST,
-                        new HttpEntity<>(JsonConverter.toJsonString(new ReplyMessage(event.getReplyToken(), messagesList)), headers), String.class);
+            } catch (Exception e) {
+                // [F1-02] 單一 event 處理失敗不得拖垮同批其他 event，記錄後繼續處理下一個
+                log.error("[F1-02] process single LINE event failed: {}", e.getMessage(), e);
             }
         });
 
@@ -164,9 +204,13 @@ public class LineServiceImpl implements LineService {
         }
 
         var replyMessage = new ReplyMessage(replyToken, messagesList);
-        return restTemplate.exchange(url, HttpMethod.POST,
+        var response = restTemplate.exchange(url, HttpMethod.POST,
                 new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers),
                 String.class);
+        logReplyStatus("replyWeatherForecast", response);
+        // [F1-01] 快取寫入搬到回覆送出之後，Redis 故障不再拖累或中斷回覆
+        weatherForecastServiceImpl.cacheDistrict(dist, low);
+        return response;
     }
 
     @Override
@@ -177,15 +221,30 @@ public class LineServiceImpl implements LineService {
         var headers = headersUtil.setHeaders();
         var messagesList = new LinkedList<Messages>();
         var openData = weatherForecastServiceImpl.findByDistrictAndCity(dist, city);
-        // 單比結果
-        var messages = weatherForecastLineMessageReply(openData);
 
-        messagesList.add(messages);
+        // [F1-05] findByDistrictAndCity 回 null 是合法路徑（查無資料），不可再交給
+        // weatherForecastLineMessageReply（其內部會呼叫 openData.getWeatherForecast() 而 NPE）
+        if (openData != null) {
+            var messages = weatherForecastLineMessageReply(openData);
+            messagesList.add(messages);
+        } else {
+            var messages = new Messages();
+            messages.setType("text");
+            messages.setText("查不到該地區的天氣資料，請換一個地區試試");
+            messagesList.add(messages);
+        }
 
         var replyMessage = new ReplyMessage(replyToken, messagesList);
 
-        return restTemplate.exchange(url, HttpMethod.POST,
+        var response = restTemplate.exchange(url, HttpMethod.POST,
                 new HttpEntity<>(JsonConverter.toJsonString(replyMessage), headers), String.class);
+        logReplyStatus("replyWeatherLocation", response);
+
+        if (openData != null) {
+            // [F1-01] 快取寫入搬到回覆送出之後，Redis 故障不再拖累或中斷回覆
+            weatherForecastServiceImpl.cacheDistrictAndCity(dist, city, openData);
+        }
+        return response;
     }
 
     @Override
