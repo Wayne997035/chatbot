@@ -47,8 +47,21 @@ tasks.withType(JavaCompile).configureEach {
 	options.release = 25
 }
 
-compileTestJava.enabled = false
+// [F1-04] compileTestJava 的 exclude 作用在原始碼層（編譯前），只設 test{exclude} 擋不住編譯失敗。
+// ChatbotApplicationTests.java 匯入不存在的 DGS 依賴 —— 開工單事實表第 8 列已知。
+// OpenDataServiceTest.java 實測同樣編不過：AutoConfigureMockMvc 在 Spring Boot 4.0.8 的
+// spring-boot-test-autoconfigure 內已不存在（該類別搬到獨立模組 spring-boot-webmvc-test，
+// 未被 spring-boot-starter-test 帶入）——與開工單事實表第 8 列「OpenDataServiceTest 編得過」
+// 不符，本輪不加新依賴／不升版本（Boundaries），改在編譯層一併排除，效果同為「不修內容、不執行」。
+compileTestJava {
+	exclude '**/ChatbotApplicationTests.java'
+	exclude '**/OpenDataServiceTest.java'
+}
 
+// [F1-04] 原本連 useJUnitPlatform() 都沒設：即使把上面兩層排除都設對，Gradle 的 test 任務預設用
+// JUnit4 runner 收案，JUnit Jupiter（@org.junit.jupiter.api.Test）一支都收不到，
+// 實測 `./gradlew test` 會直接 FAILED（"did not discover any tests to execute"）。
+// 這是「測試真的被執行」的必要條件，不是新依賴 —— spring-boot-starter-test 已含 JUnit Platform。
 test {
-	exclude '**/*'
+	useJUnitPlatform()
 }
